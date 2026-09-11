@@ -109,11 +109,22 @@ class AiTrainerViewProvider implements vscode.WebviewViewProvider {
    * calls `recordRun` above the moment a real process actually exits. */
   private async postCorpora() {
     const history = this.getRunHistory();
+    const searchDirs = corpusSearchDirs();
     const corpora = listAvailableCorpora().map((filePath) => {
+      // Real, direct labeling: a file inside a real subfolder (e.g. the
+      // seeded "Examples (Yggdrasil Suite)" folder) shows that folder
+      // name too, so a bundled example is never confused for the user's
+      // own corpus file with the same base name. A file sitting DIRECTLY
+      // in one of the real search directories just shows its own name.
+      const parentDir = path.dirname(filePath);
+      const directlyInSearchDir = searchDirs.some((d) => path.resolve(d) === path.resolve(parentDir));
+      const baseLabel = directlyInSearchDir
+        ? path.basename(filePath)
+        : `${path.basename(parentDir)}/${path.basename(filePath)}`;
       const record = history[filePath];
       const label = record
-        ? `${path.basename(filePath)} — last run: exit ${record.exitCode ?? "?"}, ${new Date(record.timestampMs).toLocaleString()} — ${record.tail}`
-        : path.basename(filePath);
+        ? `${baseLabel} — last run: exit ${record.exitCode ?? "?"}, ${new Date(record.timestampMs).toLocaleString()} — ${record.tail}`
+        : baseLabel;
       return { path: filePath, label };
     });
     this.post({ type: "corpora", corpora });
@@ -195,7 +206,64 @@ class AiTrainerViewProvider implements vscode.WebviewViewProvider {
       case "sendChatMessage":
         await handleChatMessage(message, (m) => this.post(m));
         break;
+      case "openSettings":
+        await vscode.commands.executeCommand("workbench.action.openSettings", "AI Trainer");
+        break;
+      case "openSupport":
+        await vscode.env.openExternal(vscode.Uri.parse("https://github.com/XCloudsWolfX/ai-trainer#readme"));
+        break;
     }
+  }
+}
+
+const SAMPLE_CORPORA_SEEDED_KEY = "aiTrainer.sampleCorporaSeeded";
+
+/** Real, direct instruction (2026-09-11): "I still did not see the
+ * twelve corpus you claim already exist when I searched for existing
+ * corpus. Include them in this ext as default training corpus. Properly
+ * labled." Those real files (this project's own actual Data-training
+ * corpus, `Scipio/docs/corpora/*.jsonl`) only ever showed up through
+ * live auto-detection of a Yggdrasil Suite workspace - with AI Trainer
+ * now a genuinely separate, general-purpose tool, that workspace isn't
+ * necessarily open. Real fix: ship real copies of those files WITH the
+ * extension (`sample-corpora/`, bundled in the .vsix) and copy them into
+ * a clearly separate, labeled subfolder on first real activation - never
+ * silently mixed into the user's own corpus files. Runs once
+ * (tracked via `globalState`), and only adds files, never overwrites -
+ * if the user has already edited/deleted their own copy, this won't
+ * clobber it on a later update.
+ */
+async function seedSampleCorporaOnce(context: vscode.ExtensionContext) {
+  if (context.globalState.get<boolean>(SAMPLE_CORPORA_SEEDED_KEY, false)) {
+    return;
+  }
+  try {
+    const sourceDir = path.join(context.extensionPath, "sample-corpora");
+    if (!fs.existsSync(sourceDir)) {
+      return;
+    }
+    const destDir = path.join(defaultCorpusDir(), "Examples (Yggdrasil Suite)");
+    fs.mkdirSync(destDir, { recursive: true });
+    for (const file of fs.readdirSync(sourceDir)) {
+      const dest = path.join(destDir, file);
+      if (!fs.existsSync(dest)) {
+        fs.copyFileSync(path.join(sourceDir, file), dest);
+      }
+    }
+    const readme =
+      "These are real corpus files from Yggdrasil Suite/Scipio's own \"Data\" AI - bundled here as real, " +
+      "concrete examples of the format, not generic training data for whatever you're working on. Feel " +
+      "free to use, edit, or delete them - they won't come back once removed (this folder is only seeded " +
+      "once, on first install).\n";
+    const readmePath = path.join(destDir, "README.txt");
+    if (!fs.existsSync(readmePath)) {
+      fs.writeFileSync(readmePath, readme, "utf8");
+    }
+    await context.globalState.update(SAMPLE_CORPORA_SEEDED_KEY, true);
+  } catch {
+    // Real, honest failure mode: if seeding fails (permissions, disk
+    // full, etc.), the extension still works - it just starts with an
+    // empty corpus folder instead of the bundled examples.
   }
 }
 
@@ -210,6 +278,7 @@ export function activate(context: vscode.ExtensionContext) {
       provider.reveal();
     })
   );
+  void seedSampleCorporaOnce(context);
 }
 
 export function deactivate() {
@@ -393,17 +462,35 @@ function primaryCorpusDir(): string {
   return defaultCorpusDir();
 }
 
+/** Scans one real directory for corpus files directly inside it, plus
+ * one level of real subdirectories (e.g. the seeded "Examples
+ * (Yggdrasil Suite)" folder) - a labeled subfolder is a real, deliberate
+ * organizing tool, not something that should hide its own contents from
+ * the dropdown. */
+function corpusFilesIn(dir: string): string[] {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+  const results: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile() && RECOGNIZED_CORPUS_EXTS.some((ext) => entry.name.endsWith(ext))) {
+      results.push(path.join(dir, entry.name));
+    } else if (entry.isDirectory()) {
+      const sub = path.join(dir, entry.name);
+      for (const subEntry of fs.readdirSync(sub, { withFileTypes: true })) {
+        if (subEntry.isFile() && RECOGNIZED_CORPUS_EXTS.some((ext) => subEntry.name.endsWith(ext))) {
+          results.push(path.join(sub, subEntry.name));
+        }
+      }
+    }
+  }
+  return results;
+}
+
 function listAvailableCorpora(): string[] {
   const results: string[] = [];
   for (const dir of corpusSearchDirs()) {
-    if (!fs.existsSync(dir)) {
-      continue;
-    }
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isFile() && RECOGNIZED_CORPUS_EXTS.some((ext) => entry.name.endsWith(ext))) {
-        results.push(path.join(dir, entry.name));
-      }
-    }
+    results.push(...corpusFilesIn(dir));
   }
   return results.sort();
 }
@@ -710,8 +797,14 @@ function renderHtml(): string {
 </style>
 </head>
 <body>
-  <h3>AI Trainer</h3>
-  <div class="note">General-purpose - configure Model/Corpus directories and the Train/Chat commands in Settings (search "AI Trainer") for whatever you're actually training. Defaults match Yggdrasil Suite/Scipio's own real, working setup.</div>
+  <div class="row" style="justify-content: space-between; align-items: center;">
+    <h3 style="margin:0">AI Trainer</h3>
+    <div>
+      <button id="openSettingsBtn" title="Opens VS Code's real Settings UI, filtered to AI Trainer - customize models/corpus directories and the Train/Chat commands here">Settings</button>
+      <button id="supportBtn" title="Opens the real README/issue tracker on GitHub - report a bug, ask a question, or read the full corpus format docs">Help &amp; Support</button>
+    </div>
+  </div>
+  <div class="note">General-purpose - configure Model/Corpus directories and the Train/Chat commands in Settings (button above) for whatever you're actually training. Defaults match Yggdrasil Suite/Scipio's own real, working setup. Hover any label for what it means.</div>
   <div class="tabs">
     <div class="tab active" data-tab="train">Train</div>
     <div class="tab" data-tab="corpus">Corpus</div>
@@ -818,6 +911,8 @@ function renderHtml(): string {
     const rankEl = document.getElementById("rank");
     const alphaEl = document.getElementById("alpha");
 
+    document.getElementById("openSettingsBtn").addEventListener("click", () => vscode.postMessage({ type: "openSettings" }));
+    document.getElementById("supportBtn").addEventListener("click", () => vscode.postMessage({ type: "openSupport" }));
     document.getElementById("detectModelsBtn").addEventListener("click", () => vscode.postMessage({ type: "detectModels" }));
     document.getElementById("addModelBtn").addEventListener("click", () => vscode.postMessage({ type: "addModel" }));
     document.getElementById("removeModelBtn").addEventListener("click", () => vscode.postMessage({ type: "removeModel" }));

@@ -1,0 +1,16 @@
+# Real, direct fix (2026-09-11): a packaging near-miss caught before
+# publishing - vsce does NOT respect .gitignore for what goes into the
+# .vsix, only this file does. The first package build (before this file
+# existed) bundled Debug/ (an internal diagnostic screenshot) and
+# Training Corpus/ (the user's own live, personal corpus files,
+# including in-progress drafts) into what would have been a PUBLIC
+# extension package. Excluded here, explicitly, so this can't recur.
+Debug/**
+Training Corpus/**
+.git/**
+.gitignore
+src/**
+tsconfig.json
+*.vsix
+node_modules/**
+package-lock.json

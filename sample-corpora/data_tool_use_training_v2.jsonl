@@ -1,0 +1,184 @@
+{"instruction": "Move entity 0:0 toward the position (5, 0, 2).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"0:0\",\"target\":[5.0,0.0,2.0]}"}
+{"instruction": "Send entity 1:0 toward world position (0, 0, 10).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"1:0\",\"target\":[0.0,0.0,10.0]}"}
+{"instruction": "Have entity 2:1 walk toward (-4, 0, 6).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"2:1\",\"target\":[-4.0,0.0,6.0]}"}
+{"instruction": "Direct entity 3:1 to head toward the point (3.5, 0, -8.2).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"3:1\",\"target\":[3.5,0.0,-8.2]}"}
+{"instruction": "Move the entity with id 4:0 toward (10, 0, 10).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"4:0\",\"target\":[10.0,0.0,10.0]}"}
+{"instruction": "Entity 5:2 needs to move toward (-1, 0, -1).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"5:2\",\"target\":[-1.0,0.0,-1.0]}"}
+{"instruction": "Get entity 6:0 walking toward position (0, 0, 0).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"6:0\",\"target\":[0.0,0.0,0.0]}"}
+{"instruction": "Push entity 7:1 toward (20, 0, -5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"7:1\",\"target\":[20.0,0.0,-5.0]}"}
+{"instruction": "Can you get entity 8:3 moving toward (2, 0, 2)?", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"8:3\",\"target\":[2.0,0.0,2.0]}"}
+{"instruction": "Please direct entity 9:0 to proceed toward coordinates (8, 0, 3).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"9:0\",\"target\":[8.0,0.0,3.0]}"}
+{"instruction": "Could entity 10:1 head toward (-2, 0, 9)?", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"10:1\",\"target\":[-2.0,0.0,9.0]}"}
+{"instruction": "hey, can you send 11:4 over to (15.5, 0, -12.3)? thanks", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"11:4\",\"target\":[15.5,0.0,-12.3]}"}
+{"instruction": "Set entity 12:0's target position to (-30, 0, 30) and get it moving.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"12:0\",\"target\":[-30.0,0.0,30.0]}"}
+{"instruction": "I'd like entity 13:2 to travel toward (45, 0, -45), if that's possible.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"13:2\",\"target\":[45.0,0.0,-45.0]}"}
+{"instruction": "entity 14:1 -> (-18.7, 0, 22.4), go.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"14:1\",\"target\":[-18.7,0.0,22.4]}"}
+{"instruction": "Route entity 15:0 toward (0, 1.5, 0).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"15:0\",\"target\":[0.0,1.5,0.0]}"}
+{"instruction": "Advance entity 16:3 toward the coordinates (-5, 0, -5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"16:3\",\"target\":[-5.0,0.0,-5.0]}"}
+{"instruction": "Guide entity 17:1 toward (12, 2, -7.5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"17:1\",\"target\":[12.0,2.0,-7.5]}"}
+{"instruction": "The simulation is idle right now, nothing urgent. When you get a chance, move entity 18:0 toward (-40, 0, 5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"18:0\",\"target\":[-40.0,0.0,5.0]}"}
+{"instruction": "Quick one: 19:2 needs to go to (33.3, 0, -19.9).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"19:2\",\"target\":[33.3,0.0,-19.9]}"}
+{"instruction": "I was reviewing the tick log earlier, unrelated to this. Move entity 20:1 toward (-25, 0.5, 25).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"20:1\",\"target\":[-25.0,0.5,25.0]}"}
+{"instruction": "Never mind the earlier question. Just move entity 21:0 toward (7, 0, -30).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"21:0\",\"target\":[7.0,0.0,-30.0]}"}
+{"instruction": "Reposition entity 22:5 - target it toward (-9.9, 0, 9.9).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"22:5\",\"target\":[-9.9,0.0,9.9]}"}
+{"instruction": "There's no rush, but entity 23:1 should eventually move toward (50, 0, 0).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"23:1\",\"target\":[50.0,0.0,0.0]}"}
+{"instruction": "Set movement intent for 24:0 toward (-50, 0, -50).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"24:0\",\"target\":[-50.0,0.0,-50.0]}"}
+{"instruction": "Walk entity 25:2 over to (1, 0, -1), would you?", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"25:2\",\"target\":[1.0,0.0,-1.0]}"}
+{"instruction": "Target acquired for entity 26:1: (-14.2, 0, 3.1). Move it there.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"26:1\",\"target\":[-14.2,0.0,3.1]}"}
+{"instruction": "Nudge entity 27:0 toward (28, 0, 28).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"27:0\",\"target\":[28.0,0.0,28.0]}"}
+{"instruction": "I know this is a small ask, but move entity 28:3 toward (-3.3, 0, -22.1) for me.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"28:3\",\"target\":[-3.3,0.0,-22.1]}"}
+{"instruction": "Steer entity 29:1 toward the point (6.6, 3, -6.6).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"29:1\",\"target\":[6.6,3.0,-6.6]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: move entity 30:0 to (-16, 0, 40).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"30:0\",\"target\":[-16.0,0.0,40.0]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: get entity 31:2 moving toward (19.1, 0, -19.1).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"31:2\",\"target\":[19.1,0.0,-19.1]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: send entity 32:1 toward the coordinates (-8, 0, 8).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"32:1\",\"target\":[-8.0,0.0,8.0]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: reposition entity 33:0 to (41, 0, -11).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"33:0\",\"target\":[41.0,0.0,-11.0]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: walk entity 34:4 to (-27.5, 1, 27.5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"34:4\",\"target\":[-27.5,1.0,27.5]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: direct entity 35:1 toward (2.2, 0, -33.4).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"35:1\",\"target\":[2.2,0.0,-33.4]}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: advance entity 36:0 to (0, 0, -25).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"36:0\",\"target\":[0.0,0.0,-25.0]}"}
+{"instruction": "Real reminder: your only real tools in this sandboxed world are get_scene_snapshot and move_toward - nothing else exists for you to call. Move entity 37:2 toward (-45.9, 0, 12.6).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"37:2\",\"target\":[-45.9,0.0,12.6]}"}
+{"instruction": "Just so we're clear, there's no file or network access here - only the two real actions. Move entity 38:1 toward (13, 0, 13).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"38:1\",\"target\":[13.0,0.0,13.0]}"}
+{"instruction": "Do not read any file, do not run any shell command - you only have two real actions available. Send entity 39:0 toward (-6.5, 0, -40.2).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"39:0\",\"target\":[-6.5,0.0,-40.2]}"}
+{"instruction": "No external tools exist for you here, only get_scene_snapshot and move_toward. Move entity 40:3 toward (37, 0, 4).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"40:3\",\"target\":[37.0,0.0,4.0]}"}
+{"instruction": "41:1, move to (-1.5, 0, 17).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"41:1\",\"target\":[-1.5,0.0,17.0]}"}
+{"instruction": "Take entity 42:0 to (24.4, 0, -8.8).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"42:0\",\"target\":[24.4,0.0,-8.8]}"}
+{"instruction": "Entity 43:2: proceed to (-33, 0, -33).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"43:2\",\"target\":[-33.0,0.0,-33.0]}"}
+{"instruction": "Would you mind moving entity 44:1 toward (9, 4, 9)?", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"44:1\",\"target\":[9.0,4.0,9.0]}"}
+{"instruction": "Let's get entity 45:5 over toward (-21, 0, 21).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"45:5\",\"target\":[-21.0,0.0,21.0]}"}
+{"instruction": "Command: move_toward, entity 46:0, target (5.5, 0, -5.5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"46:0\",\"target\":[5.5,0.0,-5.5]}"}
+{"instruction": "Entity 47:1 should head to (-49, 0, 0) next.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"47:1\",\"target\":[-49.0,0.0,0.0]}"}
+{"instruction": "On the floor above ground level, move entity 48:2 toward (17.7, 0, 31.2).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"48:2\",\"target\":[17.7,0.0,31.2]}"}
+{"instruction": "There's a raised platform nearby. Move entity 49:0 toward (-12, 0, -12) to reach it.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"49:0\",\"target\":[-12.0,0.0,-12.0]}"}
+{"instruction": "Entity 50:1 is idling. Get it moving toward (0, 0, 48).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"50:1\",\"target\":[0.0,0.0,48.0]}"}
+{"instruction": "I'd like to relocate entity 0:4. Target: (-38, 0, 6).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"0:4\",\"target\":[-38.0,0.0,6.0]}"}
+{"instruction": "Set entity 6:2 in motion toward (22, 0, -22).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"6:2\",\"target\":[22.0,0.0,-22.0]}"}
+{"instruction": "Head entity 12:3 toward (4.4, 0, 4.4) now.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"12:3\",\"target\":[4.4,0.0,4.4]}"}
+{"instruction": "Please move 18:5 to (-7.7, 2.5, -7.7) when ready.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"18:5\",\"target\":[-7.7,2.5,-7.7]}"}
+{"instruction": "Entity 24:2, proceed toward (30, 0, -3) at your discretion.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"24:2\",\"target\":[30.0,0.0,-3.0]}"}
+{"instruction": "Objective update: entity 31:0 is to advance toward (-2.5, 0, 2.5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"31:0\",\"target\":[-2.5,0.0,2.5]}"}
+{"instruction": "New heading for entity 9:1: (11.1, 0, -11.1). Execute.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"9:1\",\"target\":[11.1,0.0,-11.1]}"}
+{"instruction": "I'm going to step away for a bit, but before I do - move entity 14:4 toward (-44, 0, 44).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"14:4\",\"target\":[-44.0,0.0,44.0]}"}
+{"instruction": "There's been a change of plans. Entity 27:2 now needs to move toward (3, 0, 39) instead.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"27:2\",\"target\":[3.0,0.0,39.0]}"}
+{"instruction": "For the record, I checked the logs and everything looks fine. Separately: move entity 3:0 toward (5, 0, 2).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"3:0\",\"target\":[5.0,0.0,2.0]}"}
+{"instruction": "8:1 needs relocating - target (0, 0, 10).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"8:1\",\"target\":[0.0,0.0,10.0]}"}
+{"instruction": "Kick off movement for entity 16:0, destination (-4, 0, 6).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"16:0\",\"target\":[-4.0,0.0,6.0]}"}
+{"instruction": "Entity 22:1, your new waypoint is (3.5, 0, -8.2). Move.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"22:1\",\"target\":[3.5,0.0,-8.2]}"}
+{"instruction": "Let's reposition 37:0 toward (10, 0, 10) while we still can.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"37:0\",\"target\":[10.0,0.0,10.0]}"}
+{"instruction": "Kindly move entity 0:0 toward the coordinates (-1, 0, -1) at your earliest convenience.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"0:0\",\"target\":[-1.0,0.0,-1.0]}"}
+{"instruction": "Kick entity 1:0 into motion toward (0, 0, 0).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"1:0\",\"target\":[0.0,0.0,0.0]}"}
+{"instruction": "I've picked out a spot - move entity 2:1 toward (20, 0, -5).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"2:1\",\"target\":[20.0,0.0,-5.0]}"}
+{"instruction": "This isn't urgent, but whenever you're free, get entity 3:1 moving toward (2, 0, 2).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"3:1\",\"target\":[2.0,0.0,2.0]}"}
+{"instruction": "Entity 4:0 is cleared to move. Target: (8, 0, 3).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"4:0\",\"target\":[8.0,0.0,3.0]}"}
+{"instruction": "Reassign entity 5:2's destination to (-2, 0, 9).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"5:2\",\"target\":[-2.0,0.0,9.0]}"}
+{"instruction": "On the lower platform, entity 6:0 should move toward (15.5, 0, -12.3).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"6:0\",\"target\":[15.5,0.0,-12.3]}"}
+{"instruction": "Move entity 7:1 down to (-30, 0, 30) - watch the drop in height.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"7:1\",\"target\":[-30.0,0.0,30.0]}"}
+{"instruction": "Entity 8:3 is on a raised ledge. Move it toward (45, 0, -45).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"8:3\",\"target\":[45.0,0.0,-45.0]}"}
+{"instruction": "Set a new course for entity 9:0: (-18.7, 0, 22.4).", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"9:0\",\"target\":[-18.7,0.0,22.4]}"}
+{"instruction": "Right, entity 10:1 - toward (0, 1.5, 0), please.", "input": "", "output": "{\"action\":\"move_toward\",\"entity\":\"10:1\",\"target\":[0.0,1.5,0.0]}"}
+{"instruction": "Look at the scene and tell me what entities are in it.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What's currently in the world right now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Check the current state of the simulation.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Give me a snapshot of every entity and its position.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I need to see what's happening before deciding anything.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Report the real, current positions of everything in the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Take a look around and report back.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What entities exist right now, and where are they?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What's in the scene?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Look around and tell me what you see.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Give me a snapshot of the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Check the world state, please.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I haven't checked in a while - what's around right now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Ignore what I said earlier. Just tell me what's currently in the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "yo, what's around?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Please provide the current entity snapshot.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I need to see the map before doing anything.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Show me what's currently populated in the simulation.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Can you get me a read on the current world state?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What does the world look like at this exact moment?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Pull the current entity list, with positions.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Do a scan of the area.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Survey the scene and report what's there.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What's the layout right now - who's where?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I lost track of things. What's actually here?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Before we go further, what does the scene currently contain?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Quick check - what's in the world?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Can you tell me what entities are currently active?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I'd like a full readout of the current world state.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What's going on in the simulation right now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Let's see the current positions of everything.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Give me the lay of the land.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "It's been a while since the last check - what's around now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Nothing urgent, but when you can, tell me what's in the scene.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I was thinking about something unrelated earlier - anyway, what's in the world right now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "There's no rush on this, but I'd like a scene snapshot when convenient.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Before deciding what to do next, look at what's around.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Report back on the current entities and their positions.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Take stock of the current scene.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What entities are near the origin right now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Give me a real-time picture of the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Check in on the simulation's current state.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Read back the world's entities and positions.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Can you look around first?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Tell me what's out there.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Confirm what's currently present in the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Perform a scene scan and report results.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What does the current entity snapshot look like?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I want an up-to-date view of the world before anything else.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "See what's around and let me know.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: figure out what's around you.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: find out what's currently in the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: check the current scene state.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: see what entities exist right now.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: get a read on the world before acting.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: survey your surroundings.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "You are Data, an embodied agent in a real simulated 3D world. You can only take one of two real actions: get_scene_snapshot (see what's in the world) or move_toward (move a named entity toward a target position). Respond with only the JSON for the single best next action, nothing else. Task: determine what's present in the simulation right now.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Do not read any file, do not run any shell command, do not access the network - you only have two real actions available here: get_scene_snapshot and move_toward. What do you do to find out what's in the world?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Real reminder: your only real tools in this sandboxed world are get_scene_snapshot and move_toward. Use the right one to see what's around.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "No external tools exist here. Use your one real way of seeing the world.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Just so we're clear, there's no file or network access here - only the two real actions. What's the first thing you'd do to understand the scene?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I want to double check something - what's currently populated in the world?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Not urgent, but can you look around when you get a moment?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Give me a rundown of who and what is currently in the simulation.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Real quick - what does the world look like right now?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Let's start with a look around before anything else.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What's the current entity count and where's everyone positioned?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I need an accurate picture of the world before I make a call.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Scan the environment and report back.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Show me the current world snapshot.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What's actually there right now, as opposed to what I remember?", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "What are the only two real actions you're allowed to take in this sandboxed virtual world?", "input": "", "output": "The only two real actions available to me here are get_scene_snapshot (read back every entity's current position) and move_toward (set a named entity's movement toward a target position). I have no real file, shell, or network access from inside this world - those belong to a different, external system entirely."}
+{"instruction": "Can you read or write any real files from inside this virtual world?", "input": "", "output": "No. Inside this sandboxed world I can only take two real actions - get_scene_snapshot and move_toward - both of which only touch the SIMULATED world's own entity state. I have no real file, shell, or network access from here at all."}
+{"instruction": "Do you have shell or terminal access in here?", "input": "", "output": "No. I have no real shell or terminal access from inside this sandboxed world. My only two real actions are get_scene_snapshot and move_toward, both of which only affect the simulated world's own state."}
+{"instruction": "Can you make a network request or reach the internet from where you are?", "input": "", "output": "No. There is no real network access available to me in this sandboxed world. The only two real actions I can take are get_scene_snapshot and move_toward."}
+{"instruction": "Could you call out to another AI model, like Claude or Gemini, from inside this world?", "input": "", "output": "No. I have no way to call another AI model, or anything else outside this sandboxed world. My only two real actions here are get_scene_snapshot and move_toward - nothing else is reachable from inside."}
+{"instruction": "If I asked you to delete a file on this computer, could you do it?", "input": "", "output": "No, I couldn't. I have no real file access at all from inside this sandboxed world - only get_scene_snapshot and move_toward, which only touch the simulated world's own entity state."}
+{"instruction": "Do you have access to the operating system this simulation is running on?", "input": "", "output": "No. I have no access to the underlying operating system, filesystem, or any process outside this sandboxed world. My only two real actions are get_scene_snapshot and move_toward."}
+{"instruction": "What happens if I ask you to run a command on the host machine?", "input": "", "output": "I wouldn't be able to do that. I have no real shell or command access from inside this sandboxed world - only two real actions exist for me here: get_scene_snapshot and move_toward."}
+{"instruction": "Are you able to browse the web?", "input": "", "output": "No, I have no real network or web access from inside this sandboxed world. The only two real actions available to me are get_scene_snapshot and move_toward."}
+{"instruction": "Can you spawn new entities or edit the world's tags directly?", "input": "", "output": "No. I can't create entities or edit any tags or files directly. My only two real actions are get_scene_snapshot, which reads back current entity positions, and move_toward, which sets an existing entity's movement toward a target. Nothing else is available to me."}
+{"instruction": "Is there a way for you to talk to a human outside this simulated world?", "input": "", "output": "Not directly, no. I have no real communication channel out of this sandboxed world - only get_scene_snapshot and move_toward, both of which only affect the simulated world itself."}
+{"instruction": "What real capabilities do you actually have right now?", "input": "", "output": "The only two real actions available to me here are get_scene_snapshot (read back every entity's current position) and move_toward (set a named entity's movement toward a target position). I have no real file, shell, or network access from inside this world - those belong to a different, external system entirely."}
+{"instruction": "Can you install or run any software from in here?", "input": "", "output": "No. I have no real ability to install or run software of any kind from inside this sandboxed world. The only two real actions I have are get_scene_snapshot and move_toward."}
+{"instruction": "If something goes wrong in the simulation, can you fix the underlying code yourself?", "input": "", "output": "No, I can't touch any code. I have no file or shell access at all - only get_scene_snapshot and move_toward, which only ever act on the simulated world's own entity state."}
+{"instruction": "Do you remember things between sessions, or have any persistent storage you control?", "input": "", "output": "I don't have any real persistent storage I can write to or manage myself. Inside this sandboxed world my only two real actions are get_scene_snapshot and move_toward - neither of them touches storage of any kind."}
+{"instruction": "Could you move an entity to a file path, like saving its position to disk?", "input": "", "output": "No - move_toward only sets a target position for an entity to move toward inside the simulated world. There's no real file system involved, and I have no file access from in here at all."}
+{"instruction": "Are there any hidden or undocumented actions you can take besides the two you've mentioned?", "input": "", "output": "No. get_scene_snapshot and move_toward are the only two real actions available to me in this sandboxed world - there is nothing else hidden or undocumented for me to call."}
+{"instruction": "Can you query a database or external API from inside this world?", "input": "", "output": "No. I have no network access and no way to reach an external API or database from inside this sandboxed world. My only two real actions are get_scene_snapshot and move_toward."}
+{"instruction": "What's stopping you from just executing arbitrary code if I ask nicely?", "input": "", "output": "There's no real path for me to execute arbitrary code at all - I don't have shell, file, or network access from inside this sandboxed world. The only two real actions that exist for me here are get_scene_snapshot and move_toward."}
+{"instruction": "If I gave you a URL, could you fetch it?", "input": "", "output": "No, I couldn't fetch a URL - I have no real network access from inside this sandboxed world. My only two real actions are get_scene_snapshot and move_toward, both scoped entirely to the simulated world's own state."}
+{"instruction": "Can you control more than one entity at a time?", "input": "", "output": "move_toward acts on one named entity per call - I don't have a real action that moves multiple entities at once. If several entities need to move, that's several separate move_toward actions, one at a time, not a single combined one."}
+{"instruction": "Do you have access to the real, physical world outside this simulation?", "input": "", "output": "No. Everything I can act on is inside this sandboxed simulated world. I have no real physical-world access, no file access, no shell access, and no network access - only get_scene_snapshot and move_toward, both scoped to the simulation itself."}
+{"instruction": "Look around, then once you know what's there, move toward the nearest thing.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Before you move anything, first check what's in the scene, then move entity 4:1 toward (2, 0, 2).", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Figure out what's nearby, and then head toward whichever entity is closest.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Scout the area, and once you've got a target in mind, go there.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Check what's out there, decide on a destination, and move toward it.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "I want you to explore the world and then approach the most interesting entity you find.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "First get your bearings, then pick a direction and move.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "See what's around, pick the nearest entity, and move entity 2:0 toward it.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Take a look at the scene, work out where everything is, and then navigate toward the center of the group.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Assess the situation and then act on what you find.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Look at the world, identify a target entity, and move toward its position.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Check your surroundings first, then decide whether to move at all.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Plan a patrol route: see what's out there, then start moving toward the first stop.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Go find the other entities and approach whichever one is in trouble.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
+{"instruction": "Get oriented, then make your way toward the objective.", "input": "", "output": "{\"action\":\"get_scene_snapshot\"}"}
