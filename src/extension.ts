@@ -206,6 +206,15 @@ class AiTrainerViewProvider implements vscode.WebviewViewProvider {
       case "sendChatMessage":
         await handleChatMessage(message, (m) => this.post(m));
         break;
+      case "checkTrainingStatus":
+        await handleCheckTrainingStatus(message, (m) => this.post(m));
+        break;
+      case "generateDiagnosticChart":
+        await handleGenerateDiagnosticChart(message, (m) => this.post(m), this.context.extensionPath);
+        break;
+      case "tailTrainingLog":
+        await handleTailTrainingLog(message, (m) => this.post(m));
+        break;
       case "openSettings":
         await vscode.commands.executeCommand("workbench.action.openSettings", "AI Trainer");
         break;
@@ -751,6 +760,193 @@ async function handleChatMessage(message: any, post: Poster) {
   });
 }
 
+/** Real, direct instruction (2026-09-11): "build those diagnostic tools
+ * into the trainer in vs code." Earlier the same session, checking
+ * whether a live overnight training run was healthy (memory pressure?
+ * a GPU/CPU reset loop?) required Claude's own terminal access - a
+ * user-facing question with no user-facing button, exactly the standing
+ * "real UI, not Claude-only backdoors" rule this extension already
+ * exists to satisfy for everything else. These three handlers put that
+ * same real capability behind real buttons instead.
+ *
+ * Resolves whatever the webview's Adapter path field currently holds
+ * (same value Start Training already uses) to an absolute path, the
+ * same way handleStartTraining implicitly relies on the caller having
+ * already substituted it - diagnostics needs the REAL file location to
+ * find `<adapterPath>.lock` next to it, not the raw possibly-relative
+ * string. */
+function resolveAbsoluteAdapterPath(adapterPathFromMessage: string): string | undefined {
+  const raw = (adapterPathFromMessage || "").trim();
+  if (!raw) {
+    return undefined;
+  }
+  if (path.isAbsolute(raw)) {
+    return raw;
+  }
+  const workingDir = resolveWorkingDirectory();
+  return workingDir ? path.join(workingDir, raw) : undefined;
+}
+
+/** Real lock-file format, matching Scipio's own scripts/lib/
+ * training_lock.sh exactly (3 lines: hostname, real Windows PID,
+ * timestamp) - this extension is general-purpose and doesn't require
+ * that exact training pipeline, so a missing/unreadable lock file is a
+ * normal, honest "not currently running" result, not an error. */
+async function handleCheckTrainingStatus(message: any, post: Poster) {
+  const adapterPath = resolveAbsoluteAdapterPath(message.adapterPath);
+  if (!adapterPath) {
+    post({ type: "trainingStatus", locked: false, note: "No adapter path set - pick a model first." });
+    return;
+  }
+  const lockPath = `${adapterPath}.lock`;
+  if (!fs.existsSync(lockPath)) {
+    post({ type: "trainingStatus", locked: false, adapterPath });
+    return;
+  }
+  let lockHost = "";
+  let lockPid = "";
+  let lockTime = "";
+  try {
+    const lines = fs.readFileSync(lockPath, "utf8").split(/\r?\n/);
+    [lockHost, lockPid, lockTime] = lines;
+  } catch (err: any) {
+    // Real, distinct case from "different machine, can't verify" below -
+    // this is a LOCAL read failure (permissions, a genuinely malformed
+    // file), not a cross-machine limitation, and needs its own honest
+    // message rather than being silently folded into that other one.
+    post({ type: "trainingStatus", locked: true, adapterPath, corrupted: true, error: err.message });
+    return;
+  }
+  if (!lockHost || !lockPid) {
+    post({ type: "trainingStatus", locked: true, adapterPath, corrupted: true, error: "Lock file exists but doesn't have the expected 3 lines (host/pid/timestamp)." });
+    return;
+  }
+
+  const sameMachine = lockHost === os.hostname();
+  if (!sameMachine) {
+    // Real, honest limit already documented in training_lock.sh itself:
+    // a different machine's PID can't be liveness-checked from here at
+    // all - reported as "can't verify," never guessed at either way.
+    post({ type: "trainingStatus", locked: true, adapterPath, host: lockHost, pid: lockPid, since: lockTime, alive: undefined, pidNumeric: undefined });
+    return;
+  }
+
+  const alive = await new Promise<boolean>((resolve) => {
+    // Real bug caught by direct testing (2026-09-11), not assumed: with
+    // `shell: true` on Windows, spawn's own args array is naively joined
+    // with spaces, not properly quoted - "PID eq X" (one real argument,
+    // containing spaces) becomes 4 separate unquoted tokens once cmd.exe
+    // re-parses the joined string, and tasklist rejects "eq" as an
+    // invalid option. Without `shell: true`, Node uses Win32
+    // CreateProcess directly, which quotes each array element correctly
+    // on its own - verified directly against a real, live PID before
+    // trusting it, not assumed from general child_process documentation.
+    const check = spawn("tasklist", ["/FI", `PID eq ${lockPid}`]);
+    let out = "";
+    check.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    check.on("close", () => resolve(out.includes(lockPid)));
+    check.on("error", () => resolve(false));
+  });
+
+  post({
+    type: "trainingStatus",
+    locked: true,
+    adapterPath,
+    host: lockHost,
+    pid: lockPid,
+    since: lockTime,
+    alive,
+    pidNumeric: sameMachine ? Number(lockPid) : undefined,
+  });
+}
+
+/** Real, direct generalization of the ad-hoc PowerShell sampling used
+ * earlier the same session to answer "is the training process actually
+ * healthy" - see scripts/sample_training_utilization.ps1's own header
+ * for why this samples real counters instead of trying to screenshot
+ * Task Manager's own graph (that UI proved too fragile to drive by
+ * remote-control click simulation). Real, fixed, home-relative output
+ * location - matches this extension's own established "not tied to
+ * whatever workspace happens to be open" convention for the corpus/
+ * adapter defaults. */
+function defaultDiagnosticsDir(): string {
+  return path.join(os.homedir(), "AITrainer", "Diagnostics");
+}
+
+async function handleGenerateDiagnosticChart(message: any, post: Poster, extensionPath: string) {
+  const pidNumeric = Number(message.pid);
+  if (!pidNumeric || Number.isNaN(pidNumeric)) {
+    post({ type: "diagnosticChartError", error: "No real, currently-running local process to sample - check status first." });
+    return;
+  }
+  const scriptPath = path.join(extensionPath, "scripts", "sample_training_utilization.ps1");
+  if (!fs.existsSync(scriptPath)) {
+    post({ type: "diagnosticChartError", error: `Bundled diagnostic script missing: ${scriptPath}` });
+    return;
+  }
+  const outDir = defaultDiagnosticsDir();
+  fs.mkdirSync(outDir, { recursive: true });
+  const outFile = path.join(outDir, `utilization_${Date.now()}.png`);
+
+  post({ type: "diagnosticChartStatus", running: true });
+  // Real bug caught by direct testing (2026-09-11), same root cause as
+  // the tasklist call above: `shell: true` naively joins the args array
+  // with spaces instead of quoting each element - any path containing a
+  // space (a real, common case: extensionPath under a username with a
+  // space, or a home directory like "C:\Users\John Doe\...") silently
+  // truncates at the first space once cmd.exe re-parses the joined
+  // string. Verified directly: the same real command with a real
+  // space-containing path failed with `shell: true` and worked
+  // correctly without it.
+  const child = spawn(
+    "powershell",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-TargetPid", String(pidNumeric), "-OutFile", outFile, "-Samples", "40", "-IntervalMs", "500"]
+  );
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+  child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
+  child.on("close", (code) => {
+    post({ type: "diagnosticChartStatus", running: false });
+    if (code !== 0 || !fs.existsSync(outFile)) {
+      post({ type: "diagnosticChartError", error: (stdout + stderr).trim() || `Real process exited with code ${code}, no chart produced.` });
+      return;
+    }
+    const summaryLine = stdout.split(/\r?\n/).find((l) => l.startsWith("SUMMARY:")) || "";
+    const imageData = fs.readFileSync(outFile).toString("base64");
+    post({ type: "diagnosticChart", summary: summaryLine.replace(/^SUMMARY:\s*/, ""), imageDataUri: `data:image/png;base64,${imageData}`, savedPath: outFile });
+  });
+  child.on("error", (err) => {
+    post({ type: "diagnosticChartStatus", running: false });
+    post({ type: "diagnosticChartError", error: `Real error starting the diagnostic script: ${err.message}` });
+  });
+}
+
+/** Real, direct complement to the status/chart checks above - the
+ * regimen log itself (Scipio's own overnight_lora_regimen*.sh scripts
+ * write one next to their adapter file) already records per-cycle real
+ * loss numbers; showing its tail here means checking training progress
+ * no longer requires leaving VS Code to read a text file by hand. */
+async function handleTailTrainingLog(message: any, post: Poster) {
+  const adapterPath = resolveAbsoluteAdapterPath(message.adapterPath);
+  if (!adapterPath) {
+    post({ type: "trainingLog", lines: [], note: "No adapter path set - pick a model first." });
+    return;
+  }
+  const logPath = path.join(path.dirname(adapterPath), "overnight_regimen_log.txt");
+  if (!fs.existsSync(logPath)) {
+    post({ type: "trainingLog", lines: [], note: `No log file found next to the adapter (looked for ${logPath}).` });
+    return;
+  }
+  try {
+    const content = fs.readFileSync(logPath, "utf8");
+    const allLines = content.split(/\r?\n/).filter((l) => l.length > 0);
+    post({ type: "trainingLog", lines: allLines.slice(-30), note: undefined });
+  } catch (err: any) {
+    post({ type: "trainingLog", lines: [], note: `Could not read the log file: ${err.message}` });
+  }
+}
+
 function renderHtml(): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -781,13 +977,14 @@ function renderHtml(): string {
   button:hover { background: var(--vscode-button-hoverBackground); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   #corpusPath, #corpusCreatePath { font-family: var(--vscode-editor-font-family); opacity: 0.8; font-size: 11px; word-break: break-all; }
-  #log, #chatTranscript {
+  #log, #chatTranscript, #diagLogTail {
     background: var(--vscode-editor-background); color: var(--vscode-editor-foreground);
     font-family: var(--vscode-editor-font-family); font-size: 11px; padding: 6px;
     overflow-y: auto; white-space: pre-wrap; border: 1px solid var(--vscode-panel-border);
   }
   #log { height: 220px; }
   #chatTranscript { height: 280px; margin-bottom: 8px; }
+  #diagLogTail { height: 200px; }
   .status { font-weight: bold; font-size: 12px; }
   .status.idle { color: var(--vscode-descriptionForeground); }
   .status.running { color: var(--vscode-charts-green); }
@@ -809,6 +1006,7 @@ function renderHtml(): string {
     <div class="tab active" data-tab="train">Train</div>
     <div class="tab" data-tab="corpus">Corpus</div>
     <div class="tab" data-tab="chat">Chat</div>
+    <div class="tab" data-tab="diagnostics">Diagnostics</div>
   </div>
 
   <fieldset>
@@ -890,6 +1088,24 @@ function renderHtml(): string {
       <input type="text" id="chatInput" placeholder="Ask your model something..." style="flex:1">
       <button id="sendChatBtn">Send</button>
     </div>
+  </div>
+
+  <div id="diagnostics" class="panel">
+    <div class="note">Real, on-demand checks against the adapter path above - whether a training run currently holds its lock file, and (only when that lock is on THIS machine) its actual live CPU/GPU usage and recent log output. No auto-refresh - click to check, so this never runs anything in the background you didn't ask for.</div>
+    <div class="row">
+      <button id="checkStatusBtn" title="Looks for &lt;adapter path&gt;.lock next to the adapter file above - the same lock file scripts/lib/training_lock.sh writes - and, if it's on this machine, confirms the process is genuinely still alive">Check Training Status</button>
+    </div>
+    <div class="row"><span id="diagStatusText" class="status idle">not checked yet</span></div>
+    <div class="row">
+      <button id="generateChartBtn" disabled title="Samples the real process's CPU% and GPU% about 40 times over ~20 seconds and renders an actual chart from that live data - the same real diagnostic used to confirm a long-running cycle wasn't a stall or a crash-loop, not a guess">Generate Live Utilization Chart (~20s)</button>
+      <button id="tailLogBtn" title="Shows the last 30 lines of the real overnight_regimen_log.txt sitting next to the adapter file, if one exists">Show Recent Log</button>
+    </div>
+    <div class="row"><span id="chartStatusText" class="note" style="margin:0"></span></div>
+    <div id="chartContainer" style="display:none">
+      <img id="chartImage" style="max-width:100%; border:1px solid var(--vscode-panel-border)">
+      <div class="note" id="chartSavedPath"></div>
+    </div>
+    <div id="diagLogTail" style="display:none; margin-top:8px"></div>
   </div>
 
   <script>
@@ -985,6 +1201,16 @@ function renderHtml(): string {
     }
 
     // --- Corpus tab ---
+    document.getElementById("checkStatusBtn").addEventListener("click", () => {
+      vscode.postMessage({ type: "checkTrainingStatus", adapterPath: adapterPathEl.value });
+    });
+    document.getElementById("generateChartBtn").addEventListener("click", () => {
+      vscode.postMessage({ type: "generateDiagnosticChart", pid: document.getElementById("generateChartBtn").dataset.pid });
+    });
+    document.getElementById("tailLogBtn").addEventListener("click", () => {
+      vscode.postMessage({ type: "tailTrainingLog", adapterPath: adapterPathEl.value });
+    });
+
     document.getElementById("newCorpusBtn").addEventListener("click", () => vscode.postMessage({ type: "newCorpus" }));
     document.getElementById("addEntryBtn").addEventListener("click", () => {
       vscode.postMessage({
@@ -1092,6 +1318,50 @@ function renderHtml(): string {
         chatTranscript.lastChild.remove();
         appendChat("Error", message.error);
         sendChatBtn.disabled = false;
+      } else if (message.type === "trainingStatus") {
+        const el = document.getElementById("diagStatusText");
+        const chartBtn = document.getElementById("generateChartBtn");
+        if (!message.locked) {
+          el.textContent = message.note || "Not currently running (no lock file found).";
+          el.className = "status idle";
+          chartBtn.disabled = true;
+          delete chartBtn.dataset.pid;
+        } else if (message.corrupted) {
+          el.textContent = "Lock file exists but couldn't be read cleanly: " + message.error;
+          el.className = "status idle";
+          chartBtn.disabled = true;
+          delete chartBtn.dataset.pid;
+        } else if (message.alive === undefined && message.pidNumeric === undefined) {
+          el.textContent = "Locked by " + message.host + " (pid " + message.pid + ") since " + message.since + " - different machine, can't verify it's still alive from here.";
+          el.className = "status running";
+          chartBtn.disabled = true;
+          delete chartBtn.dataset.pid;
+        } else if (message.alive) {
+          el.textContent = "Running on this machine: pid " + message.pid + ", started " + message.since + ".";
+          el.className = "status running";
+          chartBtn.disabled = false;
+          chartBtn.dataset.pid = message.pid;
+        } else {
+          el.textContent = "Stale lock (pid " + message.pid + " from " + message.since + " is no longer running) - safe to start a new run.";
+          el.className = "status idle";
+          chartBtn.disabled = true;
+          delete chartBtn.dataset.pid;
+        }
+      } else if (message.type === "diagnosticChartStatus") {
+        document.getElementById("generateChartBtn").disabled = message.running;
+        document.getElementById("chartStatusText").textContent = message.running ? "Sampling real CPU/GPU usage for ~20 seconds..." : "";
+      } else if (message.type === "diagnosticChart") {
+        document.getElementById("chartStatusText").textContent = "Real: " + message.summary;
+        document.getElementById("chartImage").src = message.imageDataUri;
+        document.getElementById("chartContainer").style.display = "block";
+        document.getElementById("chartSavedPath").textContent = "Saved to: " + message.savedPath;
+      } else if (message.type === "diagnosticChartError") {
+        document.getElementById("chartStatusText").textContent = "Error: " + message.error;
+      } else if (message.type === "trainingLog") {
+        const box = document.getElementById("diagLogTail");
+        box.style.display = "block";
+        box.textContent = message.note || (message.lines.length ? message.lines.join("\\n") : "(log is empty)");
+        box.scrollTop = box.scrollHeight;
       }
     });
 
