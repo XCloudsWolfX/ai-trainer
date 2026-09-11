@@ -215,6 +215,9 @@ class AiTrainerViewProvider implements vscode.WebviewViewProvider {
       case "tailTrainingLog":
         await handleTailTrainingLog(message, (m) => this.post(m));
         break;
+      case "scanAllTrainingInstances":
+        await handleScanAllTrainingInstances((m) => this.post(m));
+        break;
       case "openSettings":
         await vscode.commands.executeCommand("workbench.action.openSettings", "AI Trainer");
         break;
@@ -1032,6 +1035,104 @@ async function handleTailTrainingLog(message: any, post: Poster) {
   }
 }
 
+/** Real, direct instruction (2026-09-11): "each instance can have its
+ * own heartbeat and the heartbeat monitor will track as many as it
+ * needs to" - Check Training Status above only ever looks at ONE
+ * adapter path at a time (whatever's in the Model/Adapter fields), and
+ * even the process-name fallback only ever reported the FIRST match.
+ * Real, direct precedent this project has already lived: three real
+ * regimens (TinyLlama, Llama-3.2-3B, and a queued music phase) running
+ * concurrently on one machine at once - a real monitor needs to show
+ * ALL of them, not one at a time. Bounded-depth walk (matches this
+ * extension's own existing "one real subdirectory level" convention for
+ * corpus/model scanning, e.g. corpusFilesIn above) rather than an
+ * unbounded recursive walk of a potentially huge directory tree. */
+function findLockFilesUnder(dir: string, maxDepth: number): string[] {
+  if (maxDepth < 0 || !fs.existsSync(dir)) {
+    return [];
+  }
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const results: string[] = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isFile() && entry.name.endsWith(".lock")) {
+      results.push(full);
+    } else if (entry.isDirectory()) {
+      results.push(...findLockFilesUnder(full, maxDepth - 1));
+    }
+  }
+  return results;
+}
+
+interface TrainingInstance {
+  source: "lock" | "processScan";
+  adapterPath?: string;
+  processName?: string;
+  host?: string;
+  pid: string;
+  since?: string;
+  alive: boolean | undefined;
+  heartbeatAgeSeconds?: number;
+  corrupted?: boolean;
+}
+
+async function handleScanAllTrainingInstances(post: Poster) {
+  const config = vscode.workspace.getConfiguration("aiTrainer");
+  const modelsDir = resolveConfiguredDir("modelsDir", "content/models");
+  const instances: TrainingInstance[] = [];
+  const seenPids = new Set<string>();
+
+  if (modelsDir) {
+    for (const lockPath of findLockFilesUnder(modelsDir, 4)) {
+      const adapterPath = lockPath.slice(0, -".lock".length);
+      let lockHost = "", lockPid = "", lockTime = "";
+      try {
+        const lines = fs.readFileSync(lockPath, "utf8").split(/\r?\n/);
+        [lockHost, lockPid, lockTime] = lines;
+      } catch {
+        instances.push({ source: "lock", adapterPath, pid: "?", alive: undefined, corrupted: true });
+        continue;
+      }
+      if (!lockHost || !lockPid) {
+        instances.push({ source: "lock", adapterPath, pid: "?", alive: undefined, corrupted: true });
+        continue;
+      }
+      const sameMachine = lockHost === os.hostname();
+      const alive = sameMachine ? await isPidAlive(lockPid) : undefined;
+      let heartbeatAgeSeconds: number | undefined;
+      if (alive) {
+        try {
+          heartbeatAgeSeconds = Math.round((Date.now() - fs.statSync(lockPath).mtimeMs) / 1000);
+        } catch {
+          heartbeatAgeSeconds = undefined;
+        }
+        seenPids.add(lockPid);
+      }
+      instances.push({ source: "lock", adapterPath, host: lockHost, pid: lockPid, since: lockTime, alive, heartbeatAgeSeconds });
+    }
+  }
+
+  const processName = config.get<string>("trainingProcessName", "");
+  for (const found of await scanForProcessByName(processName)) {
+    // Real de-duplication: a process this scan finds might be the exact
+    // SAME real process a lock file above already reported (the normal,
+    // healthy case) - only listed again here if its lock-based entry
+    // wasn't found (no lock file at all, or a stale one that didn't
+    // match this live PID), so one real running process never shows up
+    // as two separate rows.
+    if (!seenPids.has(found.pid)) {
+      instances.push({ source: "processScan", processName, pid: found.pid, alive: true });
+    }
+  }
+
+  post({ type: "trainingInstances", instances });
+}
+
 function renderHtml(): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1076,6 +1177,14 @@ function renderHtml(): string {
   .note { opacity: 0.7; font-size: 11px; margin: 4px 0 8px; }
   fieldset { border: 1px solid var(--vscode-panel-border); margin-bottom: 10px; }
   legend { font-size: 11px; opacity: 0.8; }
+  .instance-row { display: flex; align-items: center; gap: 8px; padding: 4px 2px; border-bottom: 1px solid var(--vscode-panel-border); font-size: 11px; }
+  .instance-row:last-child { border-bottom: none; }
+  .instance-name { flex: 1; word-break: break-all; }
+  .instance-meta { opacity: 0.7; white-space: nowrap; }
+  .badge { padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .badge.good { background: var(--vscode-charts-green); color: black; }
+  .badge.hung { background: var(--vscode-charts-orange, orange); color: black; }
+  .badge.bad { background: var(--vscode-charts-red, crimson); color: white; }
 </style>
 </head>
 <body>
@@ -1191,6 +1300,12 @@ function renderHtml(): string {
       <div class="note" id="chartSavedPath"></div>
     </div>
     <div id="diagLogTail" style="display:none; margin-top:8px"></div>
+
+    <details id="instancesDropdown" style="margin-top:12px; border:1px solid var(--vscode-panel-border); border-radius:2px; padding:6px 8px;">
+      <summary id="instancesSummary" style="cursor:pointer; font-weight:bold;">Training instances: checking...</summary>
+      <div class="note" style="margin-top:6px">Real, direct instruction: "each instance can have its own heartbeat and the heartbeat monitor will track as many as it needs to." Every real lock file under your configured models folder (each one's live PID, start time, and heartbeat), plus any real process matching aiTrainer.trainingProcessName with no lock file - refreshes on its own every 15s while this tab is open.</div>
+      <div id="instancesList" style="max-height:180px; overflow-y:auto; margin-top:6px"></div>
+    </details>
   </div>
 
   <script>
@@ -1204,6 +1319,9 @@ function renderHtml(): string {
         document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
         tab.classList.add("active");
         document.getElementById(tab.dataset.tab).classList.add("active");
+        if (tab.dataset.tab === "diagnostics") {
+          vscode.postMessage({ type: "scanAllTrainingInstances" });
+        }
       });
     });
 
@@ -1295,6 +1413,22 @@ function renderHtml(): string {
     document.getElementById("tailLogBtn").addEventListener("click", () => {
       vscode.postMessage({ type: "tailTrainingLog", adapterPath: adapterPathEl.value });
     });
+
+    // Real, direct instruction: "you don't have to [have a] scan all
+    // training instances button. it just create[s] the heartbeat when
+    // the training is started" - no manual trigger, this just runs on
+    // its own. Only while the Diagnostics tab is actually the visible
+    // one - a real, deliberate limit so this genuinely idle-cost check
+    // doesn't run forever in a background tab nobody's looking at.
+    function diagnosticsTabIsActive() {
+      return document.getElementById("diagnostics").classList.contains("active");
+    }
+    function refreshInstancesIfVisible() {
+      if (diagnosticsTabIsActive()) {
+        vscode.postMessage({ type: "scanAllTrainingInstances" });
+      }
+    }
+    setInterval(refreshInstancesIfVisible, 15000);
 
     document.getElementById("newCorpusBtn").addEventListener("click", () => vscode.postMessage({ type: "newCorpus" }));
     document.getElementById("addEntryBtn").addEventListener("click", () => {
@@ -1463,6 +1597,47 @@ function renderHtml(): string {
         box.style.display = "block";
         box.textContent = message.note || (message.lines.length ? message.lines.join("\\n") : "(log is empty)");
         box.scrollTop = box.scrollHeight;
+      } else if (message.type === "trainingInstances") {
+        const summary = document.getElementById("instancesSummary");
+        const list = document.getElementById("instancesList");
+        const running = message.instances.filter((i) => i.alive);
+        summary.textContent = "Training instances: " + (running.length === 0 ? "none running" : running.length + " running");
+        list.innerHTML = "";
+        if (message.instances.length === 0) {
+          list.innerHTML = '<div class="note">No lock files found and no matching process running.</div>';
+        }
+        for (const inst of message.instances) {
+          const row = document.createElement("div");
+          row.className = "instance-row";
+          const name = document.createElement("span");
+          name.className = "instance-name";
+          name.textContent = inst.adapterPath || (inst.processName ? inst.processName + " (no lock file)" : "unknown");
+          const meta = document.createElement("span");
+          meta.className = "instance-meta";
+          meta.textContent = "pid " + inst.pid + (inst.since ? ", started " + inst.since : "");
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          if (inst.corrupted) {
+            badge.classList.add("bad");
+            badge.textContent = "corrupted lock";
+          } else if (!inst.alive) {
+            badge.classList.add("bad");
+            badge.textContent = "stale";
+          } else if (inst.heartbeatAgeSeconds !== undefined && inst.heartbeatAgeSeconds > 90) {
+            badge.classList.add("hung");
+            badge.textContent = "hung (" + inst.heartbeatAgeSeconds + "s)";
+          } else if (inst.heartbeatAgeSeconds !== undefined) {
+            badge.classList.add("good");
+            badge.textContent = "good (" + inst.heartbeatAgeSeconds + "s)";
+          } else {
+            badge.classList.add("good");
+            badge.textContent = "running";
+          }
+          row.appendChild(name);
+          row.appendChild(meta);
+          row.appendChild(badge);
+          list.appendChild(row);
+        }
       }
     });
 
