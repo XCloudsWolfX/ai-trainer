@@ -388,9 +388,16 @@ async function handleStartTraining(message: any, post: Poster) {
     return;
   }
   const config = vscode.workspace.getConfiguration("aiTrainer");
-  const template = config.get<string>("trainCommand", "");
+  // Real, direct instruction (2026-09-11): "theres different ways to
+  // train as well yes? Lora vs I don't know what else. Add in those
+  // options." A per-run command OVERRIDE (from the Training Method
+  // dropdown) takes priority over the persisted Settings default, so
+  // switching methods doesn't require editing Settings each time -
+  // still real, honest, and editable, not a claim that every preset is
+  // pre-verified working code the way the LoRA one is.
+  const template = (message.commandOverride as string) || config.get<string>("trainCommand", "");
   if (!template.trim()) {
-    post({ type: "log", line: "aiTrainer.trainCommand is empty - set a real command in Settings first." });
+    post({ type: "log", line: "No training command set - choose a Training Method or set aiTrainer.trainCommand in Settings." });
     return;
   }
   const modelDir = message.modelDir || "";
@@ -585,6 +592,17 @@ function renderHtml(): string {
 
   <div id="train" class="panel active">
     <div class="row">
+      <label>Training Method</label>
+      <select id="methodSelect">
+        <option value="lora">LoRA (real, verified default - Yggdrasil Suite's own working command)</option>
+        <option value="full">Full Fine-Tune (edit the command below for your own real setup)</option>
+        <option value="custom">Custom (uses aiTrainer.trainCommand from Settings)</option>
+      </select>
+    </div>
+    <div class="row"><label>Command</label></div>
+    <textarea id="commandBox" rows="2" style="width:100%"></textarea>
+    <div class="note">Placeholders substituted before running: \${model}, \${corpus}, \${adapterPath}, \${epochs}, \${learningRate}, \${rank}, \${alpha}. Editing this only changes THIS run, not your saved Settings.</div>
+    <div class="row">
       <label>Epochs</label><input type="number" id="epochs" value="1" min="1">
       <label>LR</label><input type="number" id="lr" value="0.0003" step="0.0001">
     </div>
@@ -660,6 +678,26 @@ function renderHtml(): string {
     });
     document.getElementById("refreshCorpusBtn").addEventListener("click", () => vscode.postMessage({ type: "ready" }));
     document.getElementById("selectBtn").addEventListener("click", () => vscode.postMessage({ type: "selectCorpus" }));
+
+    // Real, direct instruction: "theres different ways to train as well
+    // yes? Lora vs I don't know what else. Add in those options." LoRA
+    // is the one real, verified command (Yggdrasil Suite's own working
+    // pipeline) - Full Fine-Tune is an honest, editable STARTING SHAPE
+    // for whatever your own real full-finetune script expects, not a
+    // tested command. Custom leaves the box blank so Settings' own
+    // aiTrainer.trainCommand is used unchanged.
+    const METHOD_PRESETS = {
+      lora: "cargo run -p bl-lora --release --example train_data_adapters -- \${model} \${adapterPath} \${corpus} --epochs \${epochs} --lr \${learningRate} --rank \${rank} --alpha \${alpha} --resume-from \${adapterPath}",
+      full: "python train_full_finetune.py --model \${model} --data \${corpus} --output \${adapterPath} --epochs \${epochs} --lr \${learningRate}  # EDIT ME: this is a shape/example, not a verified script - point it at your own real training code",
+      custom: "",
+    };
+    const methodSelect = document.getElementById("methodSelect");
+    const commandBox = document.getElementById("commandBox");
+    methodSelect.addEventListener("change", () => {
+      commandBox.value = METHOD_PRESETS[methodSelect.value] || "";
+    });
+    commandBox.value = METHOD_PRESETS.lora;
+
     startBtn.addEventListener("click", () => {
       vscode.postMessage({
         type: "startTraining",
@@ -670,6 +708,7 @@ function renderHtml(): string {
         lr: Number(document.getElementById("lr").value),
         rank: Number(rankEl.value),
         alpha: Number(alphaEl.value),
+        commandOverride: commandBox.value.trim() || undefined,
       });
     });
     stopBtn.addEventListener("click", () => vscode.postMessage({ type: "stopTraining" }));

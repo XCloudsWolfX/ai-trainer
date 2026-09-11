@@ -1,13 +1,24 @@
 {
   "name": "ai-trainer",
   "displayName": "AI Trainer",
-  "description": "A real, general-purpose VS Code UI for training any local AI model - pick a corpus file, configure the model/training command for whatever project you're working in, start/stop a real run, watch live progress. Not tied to any one project's pipeline.",
+  "description": "A real, general-purpose VS Code UI for training and chatting with local AI models - pick a corpus, configure the command for whatever you're running, start/stop a real process, watch live progress. Not tied to any one project's pipeline.",
   "version": "0.2.0",
-  "publisher": "local",
+  "publisher": "bachlaude",
+  "license": "MIT",
+  "author": "Bachlaude",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/XCloudsWolfX/ai-trainer"
+  },
+  "bugs": {
+    "url": "https://github.com/XCloudsWolfX/ai-trainer/issues"
+  },
+  "homepage": "https://github.com/XCloudsWolfX/ai-trainer#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": ["Other", "Machine Learning"],
+  "keywords": ["ai", "lora", "fine-tuning", "training", "local models", "ollama", "corpus"],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
