@@ -792,15 +792,89 @@ function resolveAbsoluteAdapterPath(adapterPathFromMessage: string): string | un
  * timestamp) - this extension is general-purpose and doesn't require
  * that exact training pipeline, so a missing/unreadable lock file is a
  * normal, honest "not currently running" result, not an error. */
+/** Real, general process-liveness check by PID - the fixed version of
+ * the same tasklist call this file already uses (see the fix note at
+ * its call site below): NEVER pass `{ shell: true }` together with an
+ * args array, or a filter like "PID eq X" (one real argument containing
+ * a space) silently mis-splits once cmd.exe re-parses the naively
+ * joined string. */
+async function isPidAlive(pid: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const check = spawn("tasklist", ["/FI", `PID eq ${pid}`]);
+    let out = "";
+    check.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    check.on("close", () => resolve(out.includes(pid)));
+    check.on("error", () => resolve(false));
+  });
+}
+
+/** Real, direct instruction (2026-09-11): "if there is a process then it
+ * needs to know that there's a process running" - the lock file is a
+ * real, precise signal when it exists, but it only exists for a run
+ * that was started by a lock-aware script (Scipio's own
+ * training_lock.sh, as of this same session). A run started any other
+ * way (a plain terminal command, an older script, the CURRENTLY-running
+ * regimen that predates this feature) is a real, live process with no
+ * lock file at all - this scans for it directly by image name
+ * (`aiTrainer.trainingProcessName`, general/configurable since this
+ * extension no longer assumes one project's own binary) as a real
+ * fallback, not a replacement for the lock check above it. */
+async function scanForProcessByName(processName: string): Promise<{ pid: string }[]> {
+  if (!processName.trim()) {
+    return [];
+  }
+  const imageName = processName.endsWith(".exe") ? processName : `${processName}.exe`;
+  return new Promise((resolve) => {
+    const check = spawn("tasklist", ["/FI", `IMAGENAME eq ${imageName}`, "/FO", "CSV", "/NH"]);
+    let out = "";
+    check.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    check.on("close", () => {
+      // Real CSV shape: "Image Name","PID","Session Name","Session#","Mem Usage"
+      // A genuine "no tasks" result isn't CSV at all - filtering for a
+      // line that actually starts with a quoted field avoids
+      // misparsing that informational line as a fake match.
+      const rows = out
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('"'))
+        .map((line) => line.split('","').map((f) => f.replace(/^"|"$/g, "")));
+      resolve(rows.filter((r) => r.length >= 2).map((r) => ({ pid: r[1] })));
+    });
+    check.on("error", () => resolve([]));
+  });
+}
+
 async function handleCheckTrainingStatus(message: any, post: Poster) {
   const adapterPath = resolveAbsoluteAdapterPath(message.adapterPath);
+  const config = vscode.workspace.getConfiguration("aiTrainer");
+  const processName = config.get<string>("trainingProcessName", "");
+
+  // Real, honest fallback path: no adapter path resolved at all means
+  // there's no lock file to even look for, but a real matching process
+  // could still be running (started from a terminal, unrelated to any
+  // adapter file this extension currently knows about) - still worth
+  // checking rather than giving up immediately.
   if (!adapterPath) {
-    post({ type: "trainingStatus", locked: false, note: "No adapter path set - pick a model first." });
+    const found = await scanForProcessByName(processName);
+    if (found.length > 0) {
+      post({ type: "trainingStatus", locked: false, viaProcessScan: true, pid: found[0].pid, matchCount: found.length, note: "No adapter path set, but a real process named '" + processName + "' is running." });
+    } else {
+      post({ type: "trainingStatus", locked: false, note: "No adapter path set - pick a model first." });
+    }
     return;
   }
+
   const lockPath = `${adapterPath}.lock`;
+  const reportViaProcessScanFallback = async (noteWhy: string) => {
+    const found = await scanForProcessByName(processName);
+    if (found.length > 0) {
+      post({ type: "trainingStatus", locked: false, adapterPath, viaProcessScan: true, pid: found[0].pid, matchCount: found.length, note: noteWhy });
+    } else {
+      post({ type: "trainingStatus", locked: false, adapterPath, note: noteWhy });
+    }
+  };
+
   if (!fs.existsSync(lockPath)) {
-    post({ type: "trainingStatus", locked: false, adapterPath });
+    await reportViaProcessScanFallback("No lock file found (a training run started outside a lock-aware script won't have one).");
     return;
   }
   let lockHost = "";
@@ -831,22 +905,32 @@ async function handleCheckTrainingStatus(message: any, post: Poster) {
     return;
   }
 
-  const alive = await new Promise<boolean>((resolve) => {
-    // Real bug caught by direct testing (2026-09-11), not assumed: with
-    // `shell: true` on Windows, spawn's own args array is naively joined
-    // with spaces, not properly quoted - "PID eq X" (one real argument,
-    // containing spaces) becomes 4 separate unquoted tokens once cmd.exe
-    // re-parses the joined string, and tasklist rejects "eq" as an
-    // invalid option. Without `shell: true`, Node uses Win32
-    // CreateProcess directly, which quotes each array element correctly
-    // on its own - verified directly against a real, live PID before
-    // trusting it, not assumed from general child_process documentation.
-    const check = spawn("tasklist", ["/FI", `PID eq ${lockPid}`]);
-    let out = "";
-    check.stdout.on("data", (d: Buffer) => (out += d.toString()));
-    check.on("close", () => resolve(out.includes(lockPid)));
-    check.on("error", () => resolve(false));
-  });
+  const alive = await isPidAlive(lockPid);
+  if (!alive) {
+    // The lock is stale (a hard-killed process never got to clean it
+    // up) - still worth the same process-name fallback rather than
+    // stopping at "stale," in case a DIFFERENT real invocation of the
+    // same training process is running under a new PID the old lock
+    // doesn't know about.
+    await reportViaProcessScanFallback("Stale lock (pid " + lockPid + " from " + lockTime + " is no longer running).");
+    return;
+  }
+
+  // Real, direct instruction (2026-09-11): "give them all heartbeats" -
+  // a live PID isn't the same signal as genuine progress (a hung
+  // process still passes the tasklist check above). scripts/lib/
+  // training_lock.sh's own background loop `touch`es this same lock
+  // file every 30s while the real training process runs - its mtime IS
+  // the heartbeat, no separate file/format needed. A run started before
+  // this feature existed (or by a script that doesn't heartbeat) has no
+  // way to report one - reported as undefined, not guessed at as either
+  // healthy or stuck.
+  let heartbeatAgeSeconds: number | undefined;
+  try {
+    heartbeatAgeSeconds = Math.round((Date.now() - fs.statSync(lockPath).mtimeMs) / 1000);
+  } catch {
+    heartbeatAgeSeconds = undefined;
+  }
 
   post({
     type: "trainingStatus",
@@ -855,8 +939,9 @@ async function handleCheckTrainingStatus(message: any, post: Poster) {
     host: lockHost,
     pid: lockPid,
     since: lockTime,
-    alive,
-    pidNumeric: sameMachine ? Number(lockPid) : undefined,
+    alive: true,
+    pidNumeric: Number(lockPid),
+    heartbeatAgeSeconds,
   });
 }
 
@@ -1321,8 +1406,14 @@ function renderHtml(): string {
       } else if (message.type === "trainingStatus") {
         const el = document.getElementById("diagStatusText");
         const chartBtn = document.getElementById("generateChartBtn");
-        if (!message.locked) {
-          el.textContent = message.note || "Not currently running (no lock file found).";
+        if (message.viaProcessScan) {
+          const extra = message.matchCount > 1 ? " (" + message.matchCount + " matching processes found - showing the first)" : "";
+          el.textContent = (message.note ? message.note + " " : "") + "But a real process (pid " + message.pid + ") matching your configured process name IS running" + extra + ".";
+          el.className = "status running";
+          chartBtn.disabled = false;
+          chartBtn.dataset.pid = message.pid;
+        } else if (!message.locked) {
+          el.textContent = message.note || "Not currently running (no lock file found, and no matching process by name either).";
           el.className = "status idle";
           chartBtn.disabled = true;
           delete chartBtn.dataset.pid;
@@ -1337,8 +1428,18 @@ function renderHtml(): string {
           chartBtn.disabled = true;
           delete chartBtn.dataset.pid;
         } else if (message.alive) {
-          el.textContent = "Running on this machine: pid " + message.pid + ", started " + message.since + ".";
-          el.className = "status running";
+          let heartbeatNote = "";
+          let statusClass = "status running";
+          if (message.heartbeatAgeSeconds === undefined) {
+            heartbeatNote = " (no heartbeat available - started before this feature existed, or this script doesn't heartbeat).";
+          } else if (message.heartbeatAgeSeconds > 90) {
+            heartbeatNote = " - last heartbeat " + message.heartbeatAgeSeconds + "s ago: the process is alive but hasn't heartbeated recently - it may be hung, not making real progress.";
+            statusClass = "status idle";
+          } else {
+            heartbeatNote = " - last heartbeat " + message.heartbeatAgeSeconds + "s ago (healthy).";
+          }
+          el.textContent = "Running on this machine: pid " + message.pid + ", started " + message.since + heartbeatNote;
+          el.className = statusClass;
           chartBtn.disabled = false;
           chartBtn.dataset.pid = message.pid;
         } else {

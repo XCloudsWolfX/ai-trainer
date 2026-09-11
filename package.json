@@ -94,6 +94,11 @@
           "type": "number",
           "default": 0.0003,
           "description": "Learning rate, substituted into ${learningRate}."
+        },
+        "aiTrainer.trainingProcessName": {
+          "type": "string",
+          "default": "train_data_adapters",
+          "description": "Real, direct instruction: 'if there is a process then it needs to know that there's a process running' - Check Training Status also scans real running processes by this name (no .exe needed), not just the lock file, so a training run started OUTSIDE AI Trainer (a shell script, a terminal, before the lock file existed) is still detected. The default matches Yggdrasil Suite/Scipio's own real training binary name - change it to whatever your own ${trainCommand} actually spawns."
         }
       }
     }
