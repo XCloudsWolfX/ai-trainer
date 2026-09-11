@@ -2,7 +2,7 @@
   "name": "ai-trainer",
   "displayName": "AI Trainer",
   "description": "A real, general-purpose VS Code UI for training and chatting with local AI models - pick a corpus, configure the command for whatever you're running, start/stop a real process, watch live progress. Not tied to any one project's pipeline.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "bachlaude",
   "license": "MIT",
   "author": "Bachlaude",
@@ -22,6 +22,12 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "json",
+        "extensions": [".bach"]
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -61,13 +67,18 @@
         },
         "aiTrainer.corpusDir": {
           "type": "string",
-          "default": "docs/corpora",
-          "description": "Directory (relative to the working directory, or absolute) where training corpus files live and get created. Any *.jsonl file in it is offered as a choice."
+          "default": "",
+          "description": "Directory (relative to the working directory, or absolute) where training corpus files live and get created. Leave blank to use the real, fixed ~/AITrainer/Training Corpus/ folder instead (auto-created, not tied to any one project) - that folder is always scanned too, alongside this one if set. Both *.bach and *.jsonl files are offered as choices."
         },
         "aiTrainer.trainCommand": {
           "type": "string",
           "default": "cargo run -p bl-lora --release --example train_data_adapters -- ${model} ${adapterPath} ${corpus} --epochs ${epochs} --lr ${learningRate} --resume-from ${adapterPath}",
           "description": "The real shell command to run for training, with your own project's own real invocation - edit this for whatever you're actually training. Placeholders substituted before running: ${model}, ${corpus}, ${adapterPath}, ${epochs}, ${learningRate}. The default is Yggdrasil Suite/Scipio's own real, working command as a starting example, not a requirement."
+        },
+        "aiTrainer.chatCommand": {
+          "type": "string",
+          "default": "cargo run -p bl-lora --release --example run_data -- ${model} --adapter ${adapterPath} --rank ${rank} --alpha ${alpha} --max-new-tokens ${maxNewTokens}",
+          "description": "The real shell command to run for the Chat tab - the prompt is piped to it on stdin as {\"prompt\": \"...\"}. Placeholders: ${model}, ${adapterPath}, ${rank}, ${alpha}, ${maxNewTokens}. Tries to parse the last line of output as JSON ({response, tokens_generated} or {error}) first, falls back to showing raw output as plain text."
         },
         "aiTrainer.adapterPath": {
           "type": "string",

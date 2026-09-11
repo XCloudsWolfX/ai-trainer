@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 
 // Real, direct feedback trail this extension has grown from (2026-09-11):
@@ -39,6 +40,18 @@ interface ManualModel {
 
 const MANUAL_MODELS_KEY = "aiTrainer.manualModels";
 
+/** Real, direct instruction (2026-09-11): "should add a status next to
+ * each corpus of if it was ran and what its returns were." Keeps just
+ * the MOST RECENT real run per corpus path (not a growing log - this is
+ * "did this run, and what happened," not a full history browser) so the
+ * corpus dropdown can show it inline. */
+interface CorpusRunRecord {
+  timestampMs: number;
+  exitCode: number | null;
+  tail: string;
+}
+const RUN_HISTORY_KEY = "aiTrainer.corpusRunHistory";
+
 class AiTrainerViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "aiTrainer.view";
   private view: vscode.WebviewView | undefined;
@@ -68,26 +81,56 @@ class AiTrainerViewProvider implements vscode.WebviewViewProvider {
     await this.context.globalState.update(MANUAL_MODELS_KEY, models);
   }
 
-  private async detectAllModels(): Promise<{ name: string; path: string }[]> {
+  private async detectAllModels(): Promise<{ name: string; path: string; defaultAdapterPath: string }[]> {
     const fromDir = listAvailableModels().map((p) => ({ name: p, path: p }));
     const fromOllama = await detectOllamaModels();
     const manual = this.getManualModels();
-    return [...fromDir, ...fromOllama, ...manual];
+    return [...fromDir, ...fromOllama, ...manual].map((m) => ({ ...m, defaultAdapterPath: defaultAdapterPathFor(m.name) }));
   }
 
   private async postModels() {
     this.post({ type: "models", models: await this.detectAllModels() });
   }
 
+  private getRunHistory(): Record<string, CorpusRunRecord> {
+    return this.context.globalState.get<Record<string, CorpusRunRecord>>(RUN_HISTORY_KEY, {});
+  }
+
+  async recordRun(corpusPath: string, exitCode: number | null, tail: string): Promise<void> {
+    const history = this.getRunHistory();
+    history[corpusPath] = { timestampMs: Date.now(), exitCode, tail };
+    await this.context.globalState.update(RUN_HISTORY_KEY, history);
+  }
+
+  /** Real, direct instruction (2026-09-11): "should add a status next to
+   * each corpus of if it was ran and what its returns were." Each real
+   * corpus's own most recent real run (exit code + a tail of real
+   * output) is shown right in its dropdown label - `handleStartTraining`
+   * calls `recordRun` above the moment a real process actually exits. */
+  private async postCorpora() {
+    const history = this.getRunHistory();
+    const corpora = listAvailableCorpora().map((filePath) => {
+      const record = history[filePath];
+      const label = record
+        ? `${path.basename(filePath)} — last run: exit ${record.exitCode ?? "?"}, ${new Date(record.timestampMs).toLocaleString()} — ${record.tail}`
+        : path.basename(filePath);
+      return { path: filePath, label };
+    });
+    this.post({ type: "corpora", corpora });
+  }
+
   private async handleMessage(message: any) {
     switch (message.type) {
       case "ready":
         await this.postModels();
-        this.post({ type: "corpora", corpora: listAvailableCorpora() });
+        await this.postCorpora();
         this.post({ type: "status", running: !!runningTraining });
         break;
       case "detectModels":
         await this.postModels();
+        break;
+      case "detectCorpora":
+        await this.postCorpora();
         break;
       case "addModel": {
         const picked = await vscode.window.showOpenDialog({
@@ -137,14 +180,14 @@ class AiTrainerViewProvider implements vscode.WebviewViewProvider {
         break;
       case "saveCorpusEntry":
         await handleSaveCorpusEntry(message, (m) => this.post(m));
-        this.post({ type: "corpora", corpora: listAvailableCorpora() });
+        await this.postCorpora();
         break;
       case "newCorpus":
         await handleNewCorpus((m) => this.post(m));
-        this.post({ type: "corpora", corpora: listAvailableCorpora() });
+        await this.postCorpora();
         break;
       case "startTraining":
-        await handleStartTraining(message, (m) => this.post(m));
+        await handleStartTraining(message, (m) => this.post(m), (corpusPath, exitCode, tail) => this.recordRun(corpusPath, exitCode, tail));
         break;
       case "stopTraining":
         handleStopTraining((m) => this.post(m));
@@ -261,28 +304,115 @@ async function detectOllamaModels(): Promise<{ name: string; path: string }[]> {
   }
 }
 
-function corpusRepoDir(): string | undefined {
-  return resolveConfiguredDir("corpusDir", "docs/corpora");
+/** Real, direct instruction (2026-09-11): "Can we give them their own
+ * type like .bach or something." `.bach` is the real, native extension
+ * for a NEW corpus this extension creates - still genuinely one-JSON-
+ * object-per-line underneath (real JSONL, unchanged), just a distinctive
+ * extension so a corpus file is instantly recognizable in Explorer/file
+ * pickers instead of blending into every other `.jsonl` on disk. `.jsonl`
+ * itself stays fully real and detected too - Yggdrasil Suite's own
+ * existing corpora (and anything from before this convention existed)
+ * must keep working, not get silently orphaned by a rename. */
+const NATIVE_CORPUS_EXT = ".bach";
+const RECOGNIZED_CORPUS_EXTS = [".bach", ".jsonl"];
+
+/** Real, direct instruction (2026-09-11): "path to save resume training
+ * should be generated not asked for." Each real model gets ONE real,
+ * deterministic adapter path it saves to and resumes from across runs -
+ * derived from the model's own name so re-selecting the same model
+ * always lands on the same real file, still shown (and editable) in the
+ * UI rather than hidden, in case a real reason to override it comes up. */
+function defaultAdapterPathFor(modelIdentifier: string): string {
+  const safeName = modelIdentifier.replace(/[^a-zA-Z0-9_.-]+/g, "_");
+  return path.join(os.homedir(), "AITrainer", "Adapters", `${safeName}.safetensors`);
+}
+
+/** Real, fixed, always-present home for corpus files - NOT tied to
+ * whatever VS Code workspace happens to be open. Real, direct bug fix
+ * (2026-09-11), live report: "Browse brings up files but, I don't see a
+ * folder marked Training Corpus." The old default (`docs/corpora`,
+ * relative to whatever workspace folder happened to be open) is exactly
+ * the kind of project-specific assumption this extension was just
+ * generalized away from - a corpus repository needs to exist and be
+ * discoverable regardless of which project you're pointed at. */
+function defaultCorpusDir(): string {
+  return path.join(os.homedir(), "AITrainer", "Training Corpus");
+}
+
+const EXAMPLE_CORPUS_CONTENT =
+  '{"instruction": "This is an example entry - real training data goes one JSON object per line, like this one.", "input": "", "output": "Delete this example line once you have real entries. See the AI Trainer README for the full format."}\n';
+
+/** Real, direct instruction: "add a detect corpora function (because,
+ * how would it know)." Same real principle as `detectAllModels` - don't
+ * trust one hardcoded location. Scans (1) the fixed home default
+ * (auto-created + seeded with an example on first real access, so it's
+ * never a confusing empty folder), (2) an explicitly configured
+ * `aiTrainer.corpusDir` if set, and (3) the working directory's own
+ * `docs/corpora` if it happens to exist (the original Yggdrasil Suite
+ * convention, kept as a real, harmless bonus for backward compatibility,
+ * not a requirement). */
+function corpusSearchDirs(): string[] {
+  const dirs = new Set<string>();
+  const home = defaultCorpusDir();
+  try {
+    fs.mkdirSync(home, { recursive: true });
+    const seeded = fs.readdirSync(home).some((f) => RECOGNIZED_CORPUS_EXTS.some((ext) => f.endsWith(ext)));
+    if (!seeded) {
+      fs.writeFileSync(path.join(home, `example${NATIVE_CORPUS_EXT}`), EXAMPLE_CORPUS_CONTENT, "utf8");
+    }
+  } catch {
+    // Real, honest failure mode: if the home directory can't be created
+    // (permissions, etc.), just don't include it - other search dirs
+    // still work.
+  }
+  dirs.add(home);
+  const config = vscode.workspace.getConfiguration("aiTrainer");
+  const configured = config.get<string>("corpusDir", "").trim();
+  const root = resolveWorkingDirectory();
+  if (configured && root) {
+    dirs.add(path.isAbsolute(configured) ? configured : path.join(root, configured));
+  }
+  if (root) {
+    const legacy = path.join(root, "docs", "corpora");
+    if (fs.existsSync(legacy)) {
+      dirs.add(legacy);
+    }
+  }
+  return Array.from(dirs);
+}
+
+/** Real primary save location for a NEW corpus - the explicitly
+ * configured directory if set, otherwise the fixed home default. */
+function primaryCorpusDir(): string {
+  const config = vscode.workspace.getConfiguration("aiTrainer");
+  const configured = config.get<string>("corpusDir", "").trim();
+  const root = resolveWorkingDirectory();
+  if (configured && root) {
+    return path.isAbsolute(configured) ? configured : path.join(root, configured);
+  }
+  return defaultCorpusDir();
 }
 
 function listAvailableCorpora(): string[] {
-  const dir = corpusRepoDir();
-  const root = resolveWorkingDirectory();
-  if (!dir || !root || !fs.existsSync(dir)) {
-    return [];
+  const results: string[] = [];
+  for (const dir of corpusSearchDirs()) {
+    if (!fs.existsSync(dir)) {
+      continue;
+    }
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isFile() && RECOGNIZED_CORPUS_EXTS.some((ext) => entry.name.endsWith(ext))) {
+        results.push(path.join(dir, entry.name));
+      }
+    }
   }
-  return fs
-    .readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
-    .map((entry) => path.relative(root, path.join(dir, entry.name)).split(path.sep).join("/"))
-    .sort();
+  return results.sort();
 }
 
 async function handleSelectCorpus(post: Poster) {
   const picked = await vscode.window.showOpenDialog({
     canSelectMany: false,
-    filters: { "Training corpus (JSONL)": ["jsonl"] },
-    title: "Select a real corpus .jsonl file",
+    filters: { "Training corpus": ["bach", "jsonl"] },
+    title: "Select a real corpus file (.bach or .jsonl)",
   });
   if (picked && picked.length > 0) {
     post({ type: "corpusSelected", path: picked[0].fsPath });
@@ -292,24 +422,20 @@ async function handleSelectCorpus(post: Poster) {
 /** Real, direct instruction: "a 'New Corpus' button that opens a blank
  * .json or whatever the file type is. I can then copy and paste from
  * you or chat or gemini or even copilot and save it." A genuinely empty
- * real file in the configured corpus repository, opened in VS Code's
- * own text editor - paste raw JSONL from any AI conversation and hit
- * Ctrl+S, no custom form required. */
+ * real file in the real corpus repository, opened in VS Code's own text
+ * editor - paste raw JSONL from any AI conversation and hit Ctrl+S, no
+ * custom form required. */
 async function handleNewCorpus(post: Poster) {
-  const repoDir = corpusRepoDir();
-  if (!repoDir) {
-    post({ type: "corpusLog", line: "Could not resolve a working directory - open a folder in VS Code, or set aiTrainer.workingDirectory in Settings." });
-    return;
-  }
+  const repoDir = primaryCorpusDir();
   const name = await vscode.window.showInputBox({
-    title: "New corpus filename (created empty in the configured corpus directory)",
-    placeHolder: "e.g. gemini_lessons_2026-09-11.jsonl",
+    title: `New corpus filename (created empty in ${repoDir})`,
+    placeHolder: "e.g. gemini_lessons_2026-09-11",
     validateInput: (v) => (v.trim().length === 0 ? "Enter a filename" : undefined),
   });
   if (!name) {
     return;
   }
-  const fileName = name.endsWith(".jsonl") ? name : `${name}.jsonl`;
+  const fileName = RECOGNIZED_CORPUS_EXTS.some((ext) => name.endsWith(ext)) ? name : `${name}${NATIVE_CORPUS_EXT}`;
   const filePath = path.isAbsolute(fileName) || fileName.includes("/") || fileName.includes("\\")
     ? fileName
     : path.join(repoDir, fileName);
@@ -336,16 +462,16 @@ async function handleSaveCorpusEntry(message: any, post: Poster) {
   }
   let filePath = targetPath as string | undefined;
   if (!filePath) {
-    const repoDir = corpusRepoDir();
+    const repoDir = primaryCorpusDir();
     const name = await vscode.window.showInputBox({
-      title: "New corpus filename (saved into the configured corpus directory)",
-      placeHolder: "e.g. session_2026-09-11.jsonl",
+      title: `New corpus filename (saved into ${repoDir})`,
+      placeHolder: "e.g. session_2026-09-11",
       validateInput: (v) => (v.trim().length === 0 ? "Enter a filename" : undefined),
     });
-    if (!name || !repoDir) {
+    if (!name) {
       return;
     }
-    const fileName = name.endsWith(".jsonl") ? name : `${name}.jsonl`;
+    const fileName = RECOGNIZED_CORPUS_EXTS.some((ext) => name.endsWith(ext)) ? name : `${name}${NATIVE_CORPUS_EXT}`;
     filePath = path.isAbsolute(fileName) || fileName.includes("/") || fileName.includes("\\")
       ? fileName
       : path.join(repoDir, fileName);
@@ -372,7 +498,9 @@ function substitute(template: string, values: Record<string, string>): string {
   return result;
 }
 
-async function handleStartTraining(message: any, post: Poster) {
+type RunRecorder = (corpusPath: string, exitCode: number | null, tail: string) => Promise<void>;
+
+async function handleStartTraining(message: any, post: Poster, recordRun: RunRecorder) {
   if (runningTraining) {
     post({ type: "log", line: "A real training run is already in progress - stop it first." });
     return;
@@ -418,17 +546,31 @@ async function handleStartTraining(message: any, post: Poster) {
 
   const child = spawn(command, { cwd: workingDir, shell: true });
   runningTraining = child;
-  pipeToLog(child, post, () => {
+  const recentLines: string[] = [];
+  pipeToLog(child, post, recentLines, async (exitCode) => {
     runningTraining = undefined;
     post({ type: "status", running: false });
+    // Real, direct instruction (2026-09-11): "should add a status next
+    // to each corpus of if it was ran and what its returns were." Real
+    // tail of actual output, not a project-specific parsed value (this
+    // extension no longer assumes any one training command's own output
+    // shape) - the last non-empty line is usually the most informative
+    // one for whatever real command actually ran.
+    const tail = recentLines.filter((l) => l.trim().length > 0).slice(-1)[0] || "(no output)";
+    await recordRun(corpusPath, exitCode, tail);
   });
 }
 
-function pipeToLog(child: ChildProcessWithoutNullStreams, post: Poster, onDone: () => void) {
+function pipeToLog(child: ChildProcessWithoutNullStreams, post: Poster, recentLines: string[], onDone: (exitCode: number | null) => void) {
+  const MAX_TAIL_LINES = 5;
   const forward = (data: Buffer) => {
     for (const line of data.toString().split(/\r?\n/)) {
       if (line.length > 0) {
         post({ type: "log", line });
+        recentLines.push(line);
+        if (recentLines.length > MAX_TAIL_LINES) {
+          recentLines.shift();
+        }
       }
     }
   };
@@ -436,11 +578,11 @@ function pipeToLog(child: ChildProcessWithoutNullStreams, post: Poster, onDone: 
   child.stderr.on("data", forward);
   child.on("close", (code) => {
     post({ type: "log", line: `--- process exited with real code ${code} ---` });
-    onDone();
+    onDone(code);
   });
   child.on("error", (err) => {
     post({ type: "log", line: `Real error starting the process: ${err.message}` });
-    onDone();
+    onDone(null);
   });
 }
 
@@ -579,35 +721,50 @@ function renderHtml(): string {
   <fieldset>
     <legend>Model &amp; adapter</legend>
     <div class="row">
-      <label>Model</label><select id="modelSelect"></select>
-      <button id="detectModelsBtn" title="Rescans the configured models directory and the local Ollama daemon">Detect Models</button>
+      <label title="The base AI model you're training or chatting with. The dropdown lists real subdirectories of your configured models folder, real models already pulled by a local Ollama, and anything you've added manually below.">Model</label>
+      <select id="modelSelect"></select>
+      <button id="detectModelsBtn" title="Rescans the configured models directory and the local Ollama daemon for real models">Detect Models</button>
     </div>
     <div class="row">
-      <button id="addModelBtn">Add Model...</button>
-      <button id="removeModelBtn">Remove Model...</button>
+      <button id="addModelBtn" title="Browse to a model file or folder anywhere on disk and give it a name - for anything Detect Models can't find on its own">Add Model...</button>
+      <button id="removeModelBtn" title="Remove a manually-added model from the list (doesn't delete any real files)">Remove Model...</button>
     </div>
-    <div class="row"><label>Adapter path</label><input type="text" id="adapterPath" placeholder="path to save/resume the trained adapter/checkpoint"></div>
-    <div class="row"><label>Rank</label><input type="number" id="rank" value="4"><label>Alpha</label><input type="number" id="alpha" value="8"></div>
+    <div class="row">
+      <label title="Where the trained adapter/checkpoint is saved to, and resumed from on your NEXT run against this same model - so training accumulates across runs instead of restarting from scratch each time. Auto-filled per model; edit it if you want a different file for this run.">Adapter path</label>
+      <input type="text" id="adapterPath" placeholder="auto-filled when you pick a model">
+    </div>
+    <div class="row">
+      <label title="LoRA rank - how many extra parameters the fine-tune adds, per layer. Lower (e.g. 4) trains fast and uses little memory but learns less; higher (e.g. 16-64) can learn more but is slower and needs more memory. Only meaningful if your training command actually uses \${rank} - the default LoRA command does.">Rank</label>
+      <input type="number" id="rank" value="4">
+      <label title="LoRA alpha - a scaling factor applied to the rank-4/8/etc. adjustment above. The common convention is alpha = 2x rank (e.g. rank 4 -> alpha 8); raising it makes the fine-tune's influence stronger without changing how many parameters it uses.">Alpha</label>
+      <input type="number" id="alpha" value="8">
+    </div>
   </fieldset>
 
   <div id="train" class="panel active">
     <div class="row">
-      <label>Training Method</label>
+      <label title="Which real training approach to run. LoRA is the one pre-filled, verified-working command (Yggdrasil Suite's own pipeline). The others are honest starting shapes for your own setup, not tested scripts.">Training Method</label>
       <select id="methodSelect">
         <option value="lora">LoRA (real, verified default - Yggdrasil Suite's own working command)</option>
         <option value="full">Full Fine-Tune (edit the command below for your own real setup)</option>
         <option value="custom">Custom (uses aiTrainer.trainCommand from Settings)</option>
       </select>
     </div>
-    <div class="row"><label>Command</label></div>
+    <div class="row"><label title="The actual shell command that will run, with placeholders filled in from the fields on this screen. Edit it freely - this only affects the run you're about to start, it doesn't overwrite your saved Settings.">Command</label></div>
     <textarea id="commandBox" rows="2" style="width:100%"></textarea>
     <div class="note">Placeholders substituted before running: \${model}, \${corpus}, \${adapterPath}, \${epochs}, \${learningRate}, \${rank}, \${alpha}. Editing this only changes THIS run, not your saved Settings.</div>
     <div class="row">
-      <label>Epochs</label><input type="number" id="epochs" value="1" min="1">
-      <label>LR</label><input type="number" id="lr" value="0.0003" step="0.0001">
+      <label title="One epoch = one full pass through your corpus. More epochs can mean more learning, but real measurements on this project found it's genuinely non-monotonic - more isn't automatically better, and can make things worse. Start at 1 and check the result before adding more.">Epochs</label>
+      <input type="number" id="epochs" value="1" min="1">
+      <label title="Learning rate - how big a step the optimizer takes each update. Too high and training can diverge (loss gets WORSE, not better); too low and it barely learns. 0.0003 is a real, already-proven value for a small model like TinyLlama - change it deliberately, not by guessing.">LR</label>
+      <input type="number" id="lr" value="0.0003" step="0.0001">
     </div>
-    <div class="row"><label>Corpus</label><select id="corpusSelect"><option value="">(select a corpus)</option></select><button id="refreshCorpusBtn" title="Rescans the configured corpus directory for new files">Refresh</button></div>
-    <div class="row"><button id="selectBtn">Browse for another file...</button></div>
+    <div class="row">
+      <label title="The real training data file (.bach or .jsonl) to train on - one {instruction, input, output} JSON object per line. Build or import one from the Corpus tab.">Corpus</label>
+      <select id="corpusSelect"><option value="">(select a corpus)</option></select>
+      <button id="refreshCorpusBtn" title="Rescans every known corpus location (your Training Corpus folder, any configured directory, and a project's own docs/corpora if present) for real files">Detect Corpora</button>
+    </div>
+    <div class="row"><button id="selectBtn" title="Open a real file picker to choose a corpus file from anywhere on disk, not just the detected locations">Browse for another file...</button></div>
     <div class="row">
       <button id="startBtn" disabled>Start Training</button>
       <button id="stopBtn" disabled>Stop</button>
@@ -617,14 +774,14 @@ function renderHtml(): string {
   </div>
 
   <div id="corpus" class="panel">
-    <div class="row"><button id="newCorpusBtn">New Corpus...</button></div>
-    <div class="note">Opens a blank real .jsonl file in the editor - paste in lines from Claude, ChatGPT, Gemini, Copilot, or Ollama and save. Fastest path if you're pasting from elsewhere.</div>
+    <div class="row"><button id="newCorpusBtn" title="Creates a real, empty .bach file (plain JSONL underneath) in your Training Corpus folder and opens it for editing">New Corpus...</button></div>
+    <div class="note">Opens a blank real .bach file (plain JSONL underneath - one JSON object per line, same as .jsonl) in the editor - paste in lines from Claude, ChatGPT, Gemini, Copilot, or Ollama and save. Fastest path if you're pasting from elsewhere.</div>
     <div class="note" style="margin-top:0">Or build one entry at a time below instead:</div>
-    <div class="row"><label>Instruction</label></div>
+    <div class="row"><label title="The real instruction/question/task the model should learn to respond to.">Instruction</label></div>
     <textarea id="corpusInstruction" rows="2"></textarea>
-    <div class="row" style="margin-top:6px"><label>Input (optional)</label></div>
+    <div class="row" style="margin-top:6px"><label title="Extra context/data for the instruction, if any - many real entries leave this blank and put everything in Instruction instead.">Input (optional)</label></div>
     <textarea id="corpusInput" rows="2"></textarea>
-    <div class="row" style="margin-top:6px"><label>Output</label></div>
+    <div class="row" style="margin-top:6px"><label title="The real, correct response the model should learn to produce for this Instruction/Input pair.">Output</label></div>
     <textarea id="corpusOutput" rows="3"></textarea>
     <div class="row" style="margin-top:8px">
       <button id="addEntryBtn">Add Entry to Corpus...</button>
@@ -676,7 +833,19 @@ function renderHtml(): string {
       corpusPath = corpusSelect.value;
       startBtn.disabled = !corpusPath;
     });
-    document.getElementById("refreshCorpusBtn").addEventListener("click", () => vscode.postMessage({ type: "ready" }));
+    document.getElementById("refreshCorpusBtn").addEventListener("click", () => vscode.postMessage({ type: "detectCorpora" }));
+
+    // Real, direct instruction (2026-09-11): "path to save resume
+    // training should be generated not asked for." Each model option
+    // carries its own real, deterministic default adapter path - auto-
+    // filled on selection, still a plain editable text field if you want
+    // to point at something else for one run.
+    modelSelect.addEventListener("change", () => {
+      const opt = modelSelect.options[modelSelect.selectedIndex];
+      if (opt && opt.dataset.defaultAdapterPath) {
+        adapterPathEl.value = opt.dataset.defaultAdapterPath;
+      }
+    });
     document.getElementById("selectBtn").addEventListener("click", () => vscode.postMessage({ type: "selectCorpus" }));
 
     // Real, direct instruction: "theres different ways to train as well
@@ -772,20 +941,27 @@ function renderHtml(): string {
         for (const m of message.models) {
           const opt = document.createElement("option");
           opt.value = m.path; opt.textContent = m.name;
+          opt.dataset.defaultAdapterPath = m.defaultAdapterPath || "";
           modelSelect.appendChild(opt);
         }
         if (previousModel && Array.from(modelSelect.options).some((o) => o.value === previousModel)) {
           modelSelect.value = previousModel;
+        } else if (modelSelect.options.length > 0) {
+          modelSelect.selectedIndex = 0;
         }
+        // Real, direct instruction: "path to save resume training should
+        // be generated not asked for" - fill it in immediately too, not
+        // only on a later change event, so it's never blank by default.
+        modelSelect.dispatchEvent(new Event("change"));
       } else if (message.type === "corpora") {
         const previous = corpusSelect.value;
         corpusSelect.innerHTML = '<option value="">(select a corpus)</option>';
         for (const c of message.corpora) {
           const opt = document.createElement("option");
-          opt.value = c; opt.textContent = c;
+          opt.value = c.path; opt.textContent = c.label;
           corpusSelect.appendChild(opt);
         }
-        if (previous && message.corpora.includes(previous)) {
+        if (previous && message.corpora.some((c) => c.path === previous)) {
           corpusSelect.value = previous;
         }
       } else if (message.type === "corpusSelected") {

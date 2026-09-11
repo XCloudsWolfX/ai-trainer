@@ -1,3 +1,11 @@
 node_modules/
 out/
 *.vsix
+
+# Real, direct safety fix (2026-09-11): the default corpus location
+# (~/AITrainer/Training Corpus/) and ad-hoc debug screenshots both land
+# INSIDE this same repo root by coincidence of path, and this repo is
+# public - real training data or a screenshot could contain private
+# content that must never get committed here. Excluded, not deleted.
+Training Corpus/
+Debug/
