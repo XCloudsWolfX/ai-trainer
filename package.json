@@ -1,0 +1,89 @@
+{
+  "name": "ai-trainer",
+  "displayName": "AI Trainer",
+  "description": "A real, general-purpose VS Code UI for training any local AI model - pick a corpus file, configure the model/training command for whatever project you're working in, start/stop a real run, watch live progress. Not tied to any one project's pipeline.",
+  "version": "0.2.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aiTrainerContainer",
+          "title": "AI Trainer",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "aiTrainerContainer": [
+        {
+          "type": "webview",
+          "id": "aiTrainer.view",
+          "name": "AI Trainer"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "aiTrainer.open",
+        "title": "AI Trainer: Open Panel"
+      }
+    ],
+    "configuration": {
+      "title": "AI Trainer",
+      "properties": {
+        "aiTrainer.workingDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to run the training command from. Leave blank to use the currently open VS Code workspace folder."
+        },
+        "aiTrainer.modelsDir": {
+          "type": "string",
+          "default": "content/models",
+          "description": "Directory (relative to the working directory, or absolute) whose real subdirectories are listed as selectable models. Works for any project's own layout - each subdirectory is just offered as a choice, nothing is assumed about its contents."
+        },
+        "aiTrainer.corpusDir": {
+          "type": "string",
+          "default": "docs/corpora",
+          "description": "Directory (relative to the working directory, or absolute) where training corpus files live and get created. Any *.jsonl file in it is offered as a choice."
+        },
+        "aiTrainer.trainCommand": {
+          "type": "string",
+          "default": "cargo run -p bl-lora --release --example train_data_adapters -- ${model} ${adapterPath} ${corpus} --epochs ${epochs} --lr ${learningRate} --resume-from ${adapterPath}",
+          "description": "The real shell command to run for training, with your own project's own real invocation - edit this for whatever you're actually training. Placeholders substituted before running: ${model}, ${corpus}, ${adapterPath}, ${epochs}, ${learningRate}. The default is Yggdrasil Suite/Scipio's own real, working command as a starting example, not a requirement."
+        },
+        "aiTrainer.adapterPath": {
+          "type": "string",
+          "default": "content/models/data-adapters/tinyllama-1.1b/session_corpus.safetensors",
+          "description": "Where a trained adapter/checkpoint is saved AND resumed from, relative to the working directory. Only meaningful if your own ${trainCommand} uses the ${adapterPath} placeholder."
+        },
+        "aiTrainer.epochs": {
+          "type": "number",
+          "default": 1,
+          "description": "Training epochs per run, substituted into ${epochs}."
+        },
+        "aiTrainer.learningRate": {
+          "type": "number",
+          "default": 0.0003,
+          "description": "Learning rate, substituted into ${learningRate}."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
